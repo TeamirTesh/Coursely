@@ -1,14 +1,16 @@
 """
 Shared DB connection module.
-Imported by scrapers, lambda handler, and FastAPI routes (Phase 2).
+Imported by scrapers, lambda handler, and FastAPI routes.
 Reads credentials from .env: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 """
 
 import os
 import psycopg2
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 def get_db() -> psycopg2.extensions.connection:
