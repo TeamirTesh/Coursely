@@ -291,6 +291,9 @@ export default function Landing() {
               </div>
             </div>
           </div>
+          <p className="text-xs mt-8 text-center" style={{ color: 'rgba(238,237,232,0.18)', lineHeight: 1.7 }}>
+            Coursely is an independent student project and is not affiliated with, endorsed by, or sponsored by Georgia State University.
+          </p>
         </div>
       </footer>
     </div>

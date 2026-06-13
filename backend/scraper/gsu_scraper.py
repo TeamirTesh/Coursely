@@ -38,10 +38,7 @@ MAX_RETRIES = 3
 HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "X-Requested-With": "XMLHttpRequest",
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": "Coursely/1.0 (coursely.dev; educational project)",
     "Referer": (
         f"{BASE_URL}/classSearch/classSearch"
     ),
