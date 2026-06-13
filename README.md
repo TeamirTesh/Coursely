@@ -1,6 +1,6 @@
 # Coursely
 
-AI-powered schedule optimizer for Georgia State University students. Enter the courses you need, set your preferences, and Coursely generates conflict-free schedules ranked by professor ratings, compactness, and your time preferences.
+(Non-AI powered) Schedule optimizer for Georgia State University students. Enter the courses you need, set your preferences, and Coursely generates conflict-free schedules ranked by professor ratings, compactness, and your time preferences.
 
 **Live:** [coursely.dev](https://coursely.dev)
 
