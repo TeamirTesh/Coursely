@@ -146,7 +146,7 @@ export default function Optimizer() {
           </p>
         </div>
 
-        <Panel label="Courses" hint="Search by course code or title — e.g. CSC 1301, MATH 2211">
+        <Panel label="Courses" hint="Search by course code or title, e.g. CSC 1301, MATH 2211">
           <CourseInput courses={courses} setCourses={setCourses} />
         </Panel>
 

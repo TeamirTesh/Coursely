@@ -1,4 +1,4 @@
-/** Bright palette — readable on dark backgrounds. */
+/** Bright palette, readable on dark backgrounds. */
 export const COURSE_COLORS = [
   { hex: '#2dd4bf' }, // teal
   { hex: '#a78bfa' }, // violet

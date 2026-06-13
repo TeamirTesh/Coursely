@@ -7,12 +7,12 @@ const STEPS = [
   {
     num: '01',
     title: 'Add your courses',
-    desc: "Search by course code or title. Coursely pulls every available section from GSU's Banner system — seats, times, professor — automatically.",
+    desc: "Search by course code or title. Coursely pulls every available section from GSU's Banner system: seats, times, and professor assignments, automatically.",
   },
   {
     num: '02',
     title: 'Define your constraints',
-    desc: 'Paint your weekly availability grid. Set how compact you want your days and which factors matter most — professor quality, time fit, or back-to-back classes.',
+    desc: 'Paint your weekly availability grid. Set how compact you want your days and which factors matter most: professor quality, time fit, or back-to-back classes.',
   },
   {
     num: '03',
@@ -127,7 +127,7 @@ export default function Landing() {
                 Consider it solved.
               </h1>
               <p className="text-lg mb-10 leading-relaxed" style={{ color: 'rgba(238,237,232,0.55)', maxWidth: '40ch' }}>
-                The first intelligent schedule engine for GSU students. Enter your courses and constraints — Coursely ranks every valid combination.
+                The first intelligent schedule engine for GSU students. Enter your courses and constraints. Coursely ranks every valid combination.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button onClick={() => navigate('/optimizer')} className="text-base font-medium py-3 px-8 transition-colors"
@@ -159,7 +159,7 @@ export default function Landing() {
               Total control over <span style={{ fontStyle: 'italic' }}>your</span> time.
             </h2>
             <p className="text-sm mb-2" style={{ color: 'rgba(238,237,232,0.4)', maxWidth: '36ch', textTransform: 'uppercase', letterSpacing: '0.1em', lineHeight: 1.7 }}>
-              Scrapes GSU's Banner system directly — 100% accurate seat counts and section data.
+              Scrapes GSU's Banner system directly. 100% accurate seat counts and section data.
             </p>
           </div>
 
@@ -173,7 +173,7 @@ export default function Landing() {
               {
                 icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>,
                 title: 'Live GSU Data',
-                desc: 'Direct integration with GSU Banner. Section availability, CRN codes, professor assignments — always current, never stale.',
+                desc: 'Direct integration with GSU Banner. Section availability, CRN codes, professor assignments. Always current, never stale.',
               },
               {
                 icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>,
@@ -270,7 +270,7 @@ export default function Landing() {
             <div className="flex flex-col gap-1.5">
               <span style={{ ...SERIF, fontStyle: 'italic', fontSize: '1.35rem', color: '#eeede8' }}>Coursely</span>
               <p className="text-xs" style={{ color: 'rgba(238,237,232,0.25)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                © 2026 Coursely — GSU Schedule Optimizer
+                © 2026 Coursely · GSU Schedule Optimizer
               </p>
             </div>
             <div className="flex gap-12">

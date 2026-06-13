@@ -66,7 +66,7 @@ export default function CourseInput({ courses, setCourses }) {
           onChange={e => setQuery(e.target.value)}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search by course code or title — e.g. CSC 1301"
+          placeholder="Search by course code or title, e.g. CSC 1301"
           className="w-full text-sm px-4 py-2.5 transition-all outline-none"
           style={{ background: '#1c1b18', border: '1px solid rgba(238,237,232,0.12)', color: '#eeede8' }}
           onFocus={e  => (e.currentTarget.style.borderColor = 'rgba(238,237,232,0.4)')}

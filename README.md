@@ -1,78 +1,66 @@
 # Coursely
 
-**Coursely** helps Georgia State University students build **conflict-free** semester schedules from real **course section** data, rank them with a **weighted multi-criteria score** (professor ratings, compactness, time preferences), and **save** favorites. The app is a **React** front end talking to a **FastAPI** + **PostgreSQL** backend.
+AI-powered schedule optimizer for Georgia State University students. Enter the courses you need, set your preferences, and Coursely generates conflict-free schedules ranked by professor ratings, compactness, and your time preferences.
+
+**Live:** [coursely.dev](https://coursely.dev)
 
 ---
 
-## Overview
+## Stack
 
-| Piece | What it does |
-|--------|----------------|
-| **Optimizer** | Pick courses, set a weekly time-preference grid and weights, **generate** ranked schedules (list/calendar, export `.ics`). |
-| **Saved schedules** | Persist chosen schedules (CRNs + score snapshot) — rename, delete. |
-| **Analytics** | Read-only SQL-backed views: saved-schedule comparison, CS fill rates, professor stats by department. |
-| **Data** | Courses/sections/professors come from scraping; professor ratings are enriched from RateMyProfessor-style data. |
-
-A default **`users`** row (`id = 1`) owns preferences and saved rows; there is **no login UI** — it keeps the demo simple while the schema is ready for real auth later.
-
----
-
-## Tech stack
-
-- **Frontend:** React (Vite), Tailwind CSS, React Router  
-- **Backend:** Python 3, FastAPI, **psycopg2** (raw SQL)  
-- **Database:** PostgreSQL  
-- **Tooling:** `backend/db/run_migration.py` for schema setup
+| Layer | Tech |
+|---|---|
+| Frontend | React + Vite + Tailwind CSS |
+| Backend | FastAPI + psycopg2 (raw SQL, no ORM) |
+| Database | PostgreSQL |
+| Migrations | Alembic |
+| Scraping | requests + BeautifulSoup (GSU Banner + RateMyProfessors) |
+| Deploy | Vercel (frontend) · Railway (backend + DB) |
 
 ---
 
-## Prerequisites
+## Local Setup
 
-- **Node.js** (for the frontend)  
-- **Python 3.10+**  
-- **PostgreSQL** running locally or remotely  
+### Prerequisites
+- Python 3.11+
+- Node 18+
+- Docker (for local Postgres via docker-compose)
 
----
-
-## Quick start
-
-### 1. Clone and configure the database
-
-Create a database (e.g. `coursely`), then copy environment variables:
+### 1. Clone and start the database
 
 ```bash
-cp .env.example .env
+git clone https://github.com/TeamirTesh/Coursely.git
+cd Coursely
+docker-compose up -d
 ```
 
-Edit **`.env`** with your real `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`.
-
-### 2. Apply the schema
-
-From the **`backend`** folder:
+### 2. Backend
 
 ```bash
 cd backend
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python db/run_migration.py
+
+cp .env.example .env        # defaults match docker-compose, no edits needed
+
+python -m alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-This runs the additive SQL migrations (including **`users`** and foreign keys). It prints which database it connected to — use the same database in tools like DBeaver.
+API + interactive docs: http://localhost:8000/docs
 
-For a **fresh** empty database you can also execute `backend/db/schema.sql` manually if you prefer.
-
-### 3. Run the API
-
-Still in **`backend`**:
+### 3. Scrape course data
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# From backend/ with .venv active
+python -m scraper.gsu_scraper     # all GSU courses (~10 min)
+python -m scraper.rmp_scraper     # professor ratings (~15 min)
 ```
 
-API base: `http://localhost:8000` — interactive docs at `http://localhost:8000/docs`.
+Without this step the optimizer returns no results.
 
-### 4. Run the frontend
-
-In another terminal:
+### 4. Frontend
 
 ```bash
 cd frontend
@@ -80,152 +68,148 @@ npm install
 npm run dev
 ```
 
-Vite proxies **`/api`** → `http://localhost:8000`, so open the URL Vite prints (usually `http://localhost:5173`).
-
-### 5. (Optional) Load course data
-
-Populate **`courses`**, **`sections`**, and **`professors`** using the scrapers under `backend/scraper/` once your DB is up. Without section data, schedule generation will return no results.
+App: http://localhost:5173 (Vite proxies `/api` to the backend automatically)
 
 ---
 
-## Mathematical modeling (schedule generation)
+## Database schema
 
-The generator does **not** use a single SQL query for ranking. It:
+| Table | Purpose |
+|---|---|
+| `users` | Default user `id=1`; schema is ready for real auth |
+| `professors` | Name, RMP rating, Bayesian `adjusted_rating`, department |
+| `courses` | Course code, title, credits, department |
+| `sections` | CRN, semester, meeting days/times, capacity, enrollment |
+| `time_preferences` | Per `(user, day, slot)` → avoid / okay / prefer |
+| `optimizer_weights` | Per user: three weights summing to 100 + compactness target |
+| `saved_schedules` | Saved result: label, score, CRNs, section snapshot |
 
-1. **Enumerates** combinations — one section per requested course — via a Cartesian product (with a **maximum combination cap** to avoid huge searches).  
-2. **Filters** — drops any pair of sections that **overlap in time** on a shared weekday.  
-3. **Disqualifies** — if the user marked an **“avoid”** time cell and a class occupies that slot, the whole schedule is rejected.  
-4. **Scores** each surviving schedule with three subscores in roughly **[0, 1]**, then a **weighted sum** \(w_1 + w_2 + w_3 = 1\):
-
-   | Subscore | Idea |
-   |----------|------|
-   | **Professor** | Average of per-section **`adjusted_rating`** (Bayesian-smoothed RMP-style signal); missing ratings fall back to a global mean. |
-   | **Compactness** | Per day: compare **gap time** vs **campus span**; average across days; match the user’s **preferred compactness** slider. |
-   | **Time preference** | Average grid preference values (e.g. prefer / okay) over occupied slots; **avoid** = hard fail. |
-
-5. Converts the weighted sum to a **0–100** style score for the UI and returns the **top K** schedules.
-
-Details live in `backend/app/services/scheduler.py`.
+Migrations live in `backend/alembic/versions/`.
 
 ---
 
-## Database schema (summary)
-
-| Table | Role |
-|-------|------|
-| `users` | Optional identity; default user `id = 1` for demo. |
-| `professors` | Name, RMP fields, `adjusted_rating`, `department`, … |
-| `courses` | Catalog: `course_code`, title, … |
-| `sections` | Offerings: CRN, semester, times, `course_id`, `professor_id`, capacity, enrolled. |
-| `time_preferences` | Per `(user_id, day, time_slot)` → preference code (avoid / okay / prefer). |
-| `optimizer_weights` | Per user: three weights summing to 100 + preferred compactness. |
-| `saved_schedules` | User’s saved result: label, term, score, `crns[]`, subscores, optional `sections_json` snapshot. |
-
-Authoritative DDL: **`backend/db/schema.sql`**.  
-Migrations: **`backend/db/migrate_additive.sql`**, **`backend/db/migrate_users_fk.sql`**.
-
----
-
-## ER diagram (conceptual)
-
-```mermaid
-erDiagram
-    users ||--o{ saved_schedules : owns
-    users ||--o{ time_preferences : has
-    users ||--o{ optimizer_weights : has
-    courses ||--o{ sections : offers
-    professors ||--o{ sections : teaches
-    saved_schedules }o--o{ sections : "via crns[] (logical)"
-
-    users {
-        int id PK
-        text email UK
-        text name
-        text university
-        timestamptz created_at
-    }
-
-    courses {
-        int id PK
-        text course_code UK
-        text title
-    }
-
-    professors {
-        int id PK
-        text name UK
-        numeric adjusted_rating
-    }
-
-    sections {
-        int id PK
-        text crn UK
-        int course_id FK
-        int professor_id FK
-        text semester
-    }
-
-    saved_schedules {
-        int id PK
-        int user_id FK
-        text label
-        numeric score
-        text[] crns
-        jsonb sections_json
-    }
-
-    time_preferences {
-        int id PK
-        int user_id FK
-        text day
-        text time_slot
-        smallint preference
-    }
-
-    optimizer_weights {
-        int id PK
-        int user_id FK
-        smallint professor_rating_weight
-        smallint compactness_weight
-        smallint time_preference_weight
-        smallint preferred_compactness
-    }
-```
-
-*Saved schedules link to sections in application/SQL by **unnesting `crns`** and joining to `sections.crn`, not a classic FK from `saved_schedules` to `sections`.*
-
----
-
-## API surface (high level)
-
-| Area | Prefix | Examples |
-|------|--------|----------|
-| Schedules | `POST /schedules/generate` | Generate ranked schedules |
-| Saved | `/saved-schedules` | CRUD on saved rows |
-| Analytics | `/analytics/...` | Aggregates for dashboards |
-| Preferences | `/preferences/...` | Time grid + weights persistence |
-| Health | `GET /health` | Liveness |
-
-Full list: **`/docs`** when the server is running.
-
----
-
-## Project layout
+## Project Structure
 
 ```
 Coursely/
-├── .env.example          # Copy to .env
 ├── backend/
-│   ├── app/              # FastAPI routes, services, models
-│   ├── db/               # connection, schema.sql, migrations, run_migration.py
-│   └── scraper/          # GSU + RMP data ingestion
+│   ├── app/
+│   │   ├── main.py           # FastAPI app + CORS middleware
+│   │   ├── routes/           # courses, sections, schedules, preferences
+│   │   └── models/           # Pydantic response models
+│   ├── db/
+│   │   └── connection.py     # psycopg2 connection helper
+│   ├── scraper/
+│   │   ├── gsu_scraper.py    # GSU Banner API scraper
+│   │   └── rmp_scraper.py    # RateMyProfessors scraper
+│   ├── alembic/              # Database migrations
+│   ├── .env.example
+│   └── requirements.txt
 ├── frontend/
-│   └── src/              # React pages & components
-└── README.md             # This file
+│   ├── src/
+│   │   ├── pages/            # Landing, Optimizer
+│   │   └── components/       # CourseInput, ScheduleCard, WeeklyCalendar, Navbar
+│   └── vercel.json           # /api/* proxy rewrite → Railway
+├── docker-compose.yml
+└── LICENSE
 ```
 
 ---
 
+## Schedule Generation and Ranking Model
+
+The core engine lives in [`backend/app/services/scheduler.py`](backend/app/services/scheduler.py).
+
+### 1. Enumeration
+
+For a request with N courses, the engine takes the Cartesian product of all available sections across those courses, producing one candidate per unique combination of one section per course.
+
+```
+candidates = sections_course_1 x sections_course_2 x ... x sections_course_N
+```
+
+The search space is capped at **100,000 combinations**. If the product exceeds that, the request is rejected with an error explaining which courses have too many sections. Users can reduce the space by setting time preferences to narrow down valid slots.
+
+### 2. Conflict detection
+
+Two sections conflict if they share at least one meeting day **and** their time intervals overlap. The check is:
+
+```
+conflict = (days_A ∩ days_B ≠ ∅) AND NOT (end_A <= start_B OR end_B <= start_A)
+```
+
+Times with unknown values are treated as non-conflicting (online/async sections). Any combination with at least one conflicting pair is dropped.
+
+### 3. Hard disqualification (avoid slots)
+
+The user paints a weekly grid of 30-minute slots marked as **Avoid**, **Okay**, or **Prefer**. Any schedule where a class occupies an Avoid slot is immediately rejected before scoring. Slots not present in the grid are treated as neutral.
+
+### 4. Scoring
+
+Each surviving schedule receives three subscores, all normalized to `[0, 1]`, then combined into a weighted sum.
+
+#### 4a. Professor score
+
+```
+professor_score = mean(adjusted_rating_i for each section i)
+```
+
+`adjusted_rating` is a Bayesian-smoothed RateMyProfessors score computed during scraping:
+
+```
+adjusted_rating = (n * raw_rating + C * global_mean) / (n + C)
+```
+
+where `n` is the number of ratings, `C = 10` is the confidence constant, and `global_mean` is the mean rating across all rated professors. Sections with no professor rating fall back to the global mean, so unrated professors neither reward nor penalize a schedule.
+
+#### 4b. Compactness score
+
+For each day with classes:
+
+```
+campus_time = last_end - first_start        (total time on campus)
+class_time  = sum of all class durations
+gap_time    = campus_time - class_time
+
+daily_compactness = 1 - (gap_time / campus_time)
+```
+
+`daily_compactness` is 1.0 when classes are back-to-back with no gaps, and approaches 0 when most campus time is spent waiting.
+
+The per-day values are averaged, then compared to the user's `preferred_compactness` slider (0 = spread out, 1 = back-to-back):
+
+```
+compactness_score = max(0, 1 - |preferred_compactness - mean(daily_compactness)|)
+```
+
+This means a user who wants a spread-out schedule scores high on low-compactness results, and a user who wants back-to-back classes scores high on dense schedules.
+
+#### 4c. Time preference score
+
+The user's grid maps each `(day, 30-min slot)` to a value: `0.0` (Avoid), `0.5` (Okay), or `1.0` (Prefer). For each class in the schedule, every 30-minute slot it occupies on every meeting day is looked up in the grid:
+
+```
+slot_score = mean(grid[day][slot] for all occupied (day, slot) pairs)
+```
+
+Slots not present in the grid are ignored. If no grid values apply, the score defaults to `1.0`.
+
+### 5. Final score
+
+```
+total = w1 * professor_score + w2 * compactness_score + w3 * slot_score
+```
+
+The weights `w1`, `w2`, `w3` are set by the user and must sum to 1. Defaults are `0.40 / 0.30 / 0.30`. The total is multiplied by 100 for display (0-100 scale).
+
+Schedules are sorted descending by total score and the top K are returned (default K = 3).
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-[Add your license if applicable.]
+MIT. See [LICENSE](LICENSE).

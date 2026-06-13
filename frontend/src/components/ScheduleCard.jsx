@@ -71,7 +71,7 @@ function ScoreBar({ label, value }) {
       <div className="flex justify-between text-xs mb-1">
         <span style={{ color: 'rgba(238,237,232,0.35)' }}>{label}</span>
         <span className="tabular-nums font-medium" style={{ color: pct == null ? 'rgba(238,237,232,0.2)' : 'rgba(238,237,232,0.55)' }}>
-          {pct == null ? '—' : `${pct}%`}
+          {pct == null ? 'N/A' : `${pct}%`}
         </span>
       </div>
       <div className="h-1 overflow-hidden" style={{ background: 'rgba(238,237,232,0.08)' }}>
