@@ -119,7 +119,7 @@ export default function Landing() {
           <div className="grid grid-cols-12 gap-12 items-center">
             <div className="col-span-12 lg:col-span-7">
               <p className="text-xs font-medium mb-6" style={{ textTransform: 'uppercase', letterSpacing: '0.14em', color: 'rgba(238,237,232,0.3)' }}>
-                Georgia State University · Fall 2026
+                Schedule Creator · Fall 2026
               </p>
               <h1 style={{ ...SERIF, fontSize: 'clamp(2.8rem, 5vw, 4.5rem)', lineHeight: 1.0, letterSpacing: '-0.02em', marginBottom: '1.5rem', color: '#eeede8' }}>
                 Registration is a<br />
