@@ -12,3 +12,14 @@ backend/.env
 # Virtual environments
 .venv/
 venv/
+env/
+ENV/
+.env.bak
+pip-selfcheck.json
+*.egg-info/
+*.egg
+site-packages/
+
+# Database migration artifacts
+db/
+*.sql
