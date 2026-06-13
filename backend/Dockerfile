@@ -1,15 +1,13 @@
-# Phase 2: replace with full FastAPI app
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
 COPY app/ ./app/
-COPY db/  ./db/
+COPY db/ ./db/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
 
-# Placeholder — FastAPI app entry point (Phase 2)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
