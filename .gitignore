@@ -1,1 +1,14 @@
 course-flow-sleek/
+
+# Secrets
+backend/.env
+.env
+
+# Python cache
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
