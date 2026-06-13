@@ -24,27 +24,72 @@ function buildFullRedGrid() {
   return g
 }
 
+function rectBounds(a, b) {
+  return {
+    minDay:  Math.min(a.dayIdx,  b.dayIdx),
+    maxDay:  Math.max(a.dayIdx,  b.dayIdx),
+    minSlot: Math.min(a.slotIdx, b.slotIdx),
+    maxSlot: Math.max(a.slotIdx, b.slotIdx),
+  }
+}
+
+function inRect(bounds, dayIdx, slotIdx) {
+  if (!bounds) return false
+  return dayIdx  >= bounds.minDay  && dayIdx  <= bounds.maxDay &&
+         slotIdx >= bounds.minSlot && slotIdx <= bounds.maxSlot
+}
+
 export default function PreferenceGrid({ grid, setGrid, onCellPersist, onPersistAllZeros, onPersistGridSnapshot }) {
   const [blockSnapshot, setBlockSnapshot] = useState(null)
   const [hoveredCell,   setHoveredCell]   = useState(null)
-  const paintRef = useRef(null)
+  const [dragBounds,    setDragBounds]    = useState(null)
 
-  const applyColor = useCallback((day, slot, color) => {
+  // Refs so the mouseup handler (registered once) always sees current values
+  const dragStartRef = useRef(null)
+  const dragEndRef   = useRef(null)
+  const dragColorRef = useRef(null)
+
+  const applyRect = useCallback((start, end, color) => {
+    const { minDay, maxDay, minSlot, maxSlot } = rectBounds(start, end)
     setGrid(prev => {
-      const dayGrid = { ...(prev[day] || {}) }
-      if (color === 'red') delete dayGrid[slot]
-      else                 dayGrid[slot] = color
-      if (Object.keys(dayGrid).length === 0) { const { [day]: _, ...rest } = prev; return rest }
-      return { ...prev, [day]: dayGrid }
+      const next = { ...prev }
+      for (let di = minDay; di <= maxDay; di++) {
+        const day     = GRID_DAYS[di]
+        const dayGrid = { ...(next[day] || {}) }
+        for (let si = minSlot; si <= maxSlot; si++) {
+          const slot = SLOT_KEYS[si]
+          if (color === 'red') delete dayGrid[slot]
+          else dayGrid[slot] = color
+        }
+        if (Object.keys(dayGrid).length === 0) {
+          const { [day]: _, ...rest } = next
+          Object.assign(next, rest)
+          delete next[day]
+        } else {
+          next[day] = dayGrid
+        }
+      }
+      return next
     })
-    onCellPersist?.(day, slot, COLOR_TO_PREF[color])
+    for (let di = minDay; di <= maxDay; di++)
+      for (let si = minSlot; si <= maxSlot; si++)
+        onCellPersist?.(GRID_DAYS[di], SLOT_KEYS[si], COLOR_TO_PREF[color])
   }, [setGrid, onCellPersist])
 
   useEffect(() => {
-    const stop = () => { paintRef.current = null }
+    const stop = () => {
+      if (dragStartRef.current !== null && dragColorRef.current !== null) {
+        const end = dragEndRef.current ?? dragStartRef.current
+        applyRect(dragStartRef.current, end, dragColorRef.current)
+      }
+      dragStartRef.current = null
+      dragEndRef.current   = null
+      dragColorRef.current = null
+      setDragBounds(null)
+    }
     document.addEventListener('mouseup', stop)
     return () => document.removeEventListener('mouseup', stop)
-  }, [])
+  }, [applyRect])
 
   const toggleBlockAll = () => {
     if (blockSnapshot !== null) {
@@ -73,28 +118,36 @@ export default function PreferenceGrid({ grid, setGrid, onCellPersist, onPersist
             </tr>
           </thead>
           <tbody>
-            {SLOT_KEYS.map((slot, i) => (
+            {SLOT_KEYS.map((slot, slotIdx) => (
               <tr key={slot}>
                 <td className="pr-2 text-right whitespace-nowrap leading-none py-px" style={{ color: 'rgba(238,237,232,0.2)', fontSize: 9 }}>
-                  {i % 2 === 0 ? slotKeyToTimeLabel(slot) : ''}
+                  {slotIdx % 2 === 0 ? slotKeyToTimeLabel(slot) : ''}
                 </td>
-                {GRID_DAYS.map(d => {
-                  const color  = getCell(grid, d, slot)
-                  const cellId = `${d}-${slot}`
+                {GRID_DAYS.map((d, dayIdx) => {
+                  const color        = getCell(grid, d, slot)
+                  const cellId       = `${d}-${slot}`
+                  const previewing   = inRect(dragBounds, dayIdx, slotIdx)
+                  const displayColor = previewing ? dragColorRef.current ?? color : color
+                  const highlighted  = previewing || hoveredCell === cellId
                   return (
                     <td key={d} className="px-px py-px">
                       <div
                         className="w-9 h-3 cursor-pointer transition-all duration-75"
-                        style={hoveredCell === cellId ? CELL_HOVER[color] : CELL_STYLE[color]}
+                        style={highlighted ? CELL_HOVER[displayColor] : CELL_STYLE[displayColor]}
                         onMouseDown={e => {
                           e.preventDefault()
                           const next = CYCLE[color]
-                          paintRef.current = next
-                          applyColor(d, slot, next)
+                          dragColorRef.current = next
+                          dragStartRef.current = { dayIdx, slotIdx }
+                          dragEndRef.current   = { dayIdx, slotIdx }
+                          setDragBounds(rectBounds({ dayIdx, slotIdx }, { dayIdx, slotIdx }))
                         }}
                         onMouseEnter={() => {
                           setHoveredCell(cellId)
-                          if (paintRef.current !== null) applyColor(d, slot, paintRef.current)
+                          if (dragStartRef.current !== null) {
+                            dragEndRef.current = { dayIdx, slotIdx }
+                            setDragBounds(rectBounds(dragStartRef.current, { dayIdx, slotIdx }))
+                          }
                         }}
                         onMouseLeave={() => setHoveredCell(null)}
                       />
