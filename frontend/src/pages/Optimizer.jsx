@@ -50,6 +50,7 @@ export default function Optimizer() {
   const [weights,             setWeights]             = useState(DEFAULT_WEIGHTS)
   const [preferredCompactness,setPreferredCompactness]= useState(DEFAULT_PREF_COMPACT)
   const [results,             setResults]             = useState(null)
+  const [fallback,            setFallback]            = useState(false)
   const [loading,             setLoading]             = useState(false)
   const [error,               setError]               = useState(null)
   const [showCount,           setShowCount]           = useState(3)
@@ -106,7 +107,7 @@ export default function Optimizer() {
   }
 
   const generate = async () => {
-    setLoading(true); setError(null); setResults(null)
+    setLoading(true); setError(null); setResults(null); setFallback(false)
     try {
       const res = await fetch('/api/schedules/generate', {
         method: 'POST',
@@ -115,7 +116,7 @@ export default function Optimizer() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || 'Failed to generate schedules')
-      setResults(data); setShowCount(3)
+      setResults(data.schedules); setFallback(data.fallback); setShowCount(3)
     } catch (e) { setError(e.message) }
     finally     { setLoading(false) }
   }
@@ -187,6 +188,11 @@ export default function Optimizer() {
                 {results.length} schedule{results.length !== 1 ? 's' : ''} found
               </p>
             </div>
+            {fallback && (
+              <div className="px-5 py-4 text-sm" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', color: '#fde047' }}>
+                No schedules fit your avoid constraints. Showing closest matches with reduced scores.
+              </div>
+            )}
             {results.slice(0, showCount).map(r => (
               <ScheduleCard key={r.rank} result={r} colorMap={colorMap} />
             ))}

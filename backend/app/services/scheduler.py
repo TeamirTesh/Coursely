@@ -69,11 +69,12 @@ def has_conflict(schedule: list[dict]) -> bool:
 # Scoring
 # ---------------------------------------------------------------------------
 
-def _slot_score(schedule: list[dict], grid: dict) -> tuple[float, bool]:
+def _slot_score(schedule: list[dict], grid: dict, strict: bool = True) -> tuple[float, bool]:
     """
     Compute the slot score for a schedule against the preference grid.
     Returns (score, red_disqualified).
-    A red cell (value == 0.0) in any occupied slot disqualifies the schedule.
+    When strict=True, a red cell (value == 0.0) hard-disqualifies the schedule.
+    When strict=False, red cells score 0.0 but do not disqualify.
     Empty grid → score 1.0, not disqualified.
     """
     if not grid:
@@ -94,7 +95,7 @@ def _slot_score(schedule: list[dict], grid: dict) -> tuple[float, bool]:
             for slot in _slot_keys(start_min, end_min):
                 val = day_grid.get(slot)
                 if val is not None:
-                    if val == 0.0:
+                    if val == 0.0 and strict:
                         return 0.0, True  # hard disqualifier
                     values.append(val)
 
@@ -153,12 +154,13 @@ def score_schedule(
     weights: dict,
     preferred_compactness: float,
     global_mean: float,
+    strict: bool = True,
 ) -> tuple[Optional[dict], bool]:
     """
     Score a schedule. Returns (scores_dict, disqualified).
-    disqualified=True means a red grid cell was hit — skip this schedule.
+    disqualified=True means a red grid cell was hit in strict mode.
     """
-    slot, red = _slot_score(schedule, grid)
+    slot, red = _slot_score(schedule, grid, strict=strict)
     if red:
         return None, True
 
@@ -193,6 +195,7 @@ def generate_schedules(
     preferred_compactness: float,
     global_mean: float,
     max_results: int = 3,
+    strict: bool = True,
 ) -> list[dict]:
     """
     Generate all valid schedules from the Cartesian product of sections
@@ -202,14 +205,13 @@ def generate_schedules(
     course_codes  = list(sections_by_course.keys())
     section_lists = [sections_by_course[c] for c in course_codes]
 
-    # Guard: fail fast before iterating a huge product
     combo_count = 1
     for lst in section_lists:
         combo_count *= len(lst)
     if combo_count > MAX_COMBINATIONS:
         counts = {c: len(s) for c, s in sections_by_course.items()}
         raise ValueError(
-            f"Too many combinations ({combo_count:,}) — max is {MAX_COMBINATIONS:,}. "
+            f"Too many combinations ({combo_count:,}), max is {MAX_COMBINATIONS:,}. "
             f"Section counts: {counts}. Try fewer courses or add time preferences to reduce options."
         )
 
@@ -222,7 +224,7 @@ def generate_schedules(
             continue
 
         scores, disqualified = score_schedule(
-            schedule, grid, weights, preferred_compactness, global_mean
+            schedule, grid, weights, preferred_compactness, global_mean, strict=strict
         )
         if disqualified:
             continue

@@ -54,11 +54,16 @@ class ScheduleResult(BaseModel):
     sections:           list[Section]
 
 
+class GenerateResponse(BaseModel):
+    schedules: list[ScheduleResult]
+    fallback:  bool
+
+
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
 
-@router.post("", response_model=list[ScheduleResult])
+@router.post("", response_model=GenerateResponse)
 def generate(req: ScheduleRequest):
     """
     Generate ranked, conflict-free schedules.
@@ -173,24 +178,42 @@ def generate(req: ScheduleRequest):
             preferred_compactness=req.preferred_compactness,
             global_mean=global_mean,
             max_results=req.max_results,
+            strict=True,
         )
+        fallback = False
+
+        if not schedules:
+            schedules = generate_schedules(
+                sections_by_course=sections_by_course,
+                grid=req.grid,
+                weights=weights,
+                preferred_compactness=req.preferred_compactness,
+                global_mean=global_mean,
+                max_results=req.max_results,
+                strict=False,
+            )
+            fallback = True
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     if not schedules:
         raise HTTPException(
             status_code=404,
-            detail="No valid conflict-free schedules found for the given courses and preferences.",
+            detail="No conflict-free schedules found for the given courses.",
         )
 
-    return [
-        ScheduleResult(
-            rank=i + 1,
-            score=s["total"],
-            professor_score=s["professor_score"],
-            compactness_score=s["compactness_score"],
-            slot_score=s["slot_score"],
-            sections=[Section(**sec) for sec in s["sections"]],
-        )
-        for i, s in enumerate(schedules)
-    ]
+    return GenerateResponse(
+        fallback=fallback,
+        schedules=[
+            ScheduleResult(
+                rank=i + 1,
+                score=s["total"],
+                professor_score=s["professor_score"],
+                compactness_score=s["compactness_score"],
+                slot_score=s["slot_score"],
+                sections=[Section(**sec) for sec in s["sections"]],
+            )
+            for i, s in enumerate(schedules)
+        ],
+    )
